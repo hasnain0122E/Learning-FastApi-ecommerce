@@ -1,6 +1,74 @@
-from pydantic import BaseModel, Field
-from typing import Annotated, Literal
+# base model for the product - used to define the structure of the product data and to validate the data when creating or updating a product
+from pydantic import (
+    BaseModel,
+    Field,
+    AnyUrl,
+    field_validator,
+    model_validator,
+    computed_field,
+    EmailStr,
+)
+
+# typing imports - used to define the types of the fields in the model
+# annoteded is used to define the type of the field and also to add additional metadata to the field, such as description, examples, etc.
+from typing import Annotated, Literal, List, Optional
 from uuid import UUID
+from datetime import datetime
+
+
+class Seller(BaseModel):
+    seller_id: UUID
+    name: Annotated[
+        str,
+        Field(
+            min_length=3,
+            max_length=50,
+            description="The name of the seller",
+            examples=["Apple Store", "Samsung Electronics"],
+        ),
+    ]
+    email: Annotated[EmailStr, Field(description="The email of the seller")]
+    website: Annotated[AnyUrl, Field(description="The website of the seller")]
+
+    @field_validator("email", mode="after")
+    @classmethod
+    def validate_seller_email(cls, value: EmailStr):
+        allowed_domains = ["example.com", "store.com", "electronics.com"]
+        domain = value.split("@")[-1]
+        if domain not in allowed_domains:
+            raise ValueError(f"Cureent domain {domain} is not allowed for seller email")
+
+        return value
+
+
+class dimensions_cm(BaseModel):
+    length: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="The length of the product in centimeters, must be positive",
+            examples=[10.5, 25.0],
+            strict=True,
+        ),
+    ]
+    width: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="The width of the product in centimeters, must be positive",
+            examples=[5.0, 15.0],
+            strict=True,
+        ),
+    ]
+    height: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="The height of the product in centimeters, must be positive",
+            examples=[2.0, 10.0],
+            strict=True,
+        ),
+    ]
 
 
 class Product(BaseModel):
@@ -64,11 +132,17 @@ class Product(BaseModel):
     stock: Annotated[
         int,
         Field(
-            ge=0, description="The stock quantity of the product, must be non-negative"
+            ge=0,
+            description="The stock quantity of the product, must be non-negative",
+            examples=[0, 10, 50],
         ),
     ]
     is_active: Annotated[
-        bool, Field(description="Indicates whether the product is active or not")
+        bool,
+        Field(
+            description="Indicates whether the product is active or not",
+            examples=[True, False],
+        ),
     ]
     rating: Annotated[
         float,
@@ -76,3 +150,60 @@ class Product(BaseModel):
             ge=0, le=5, description="The rating of the product, must be between 0 and 5"
         ),
     ]
+    Tags: Annotated[
+        Optional[List[str]],
+        Field(
+            default=None,
+            max_length=10,
+            description="The tags associated with the product",
+        ),
+    ]
+    image_urls: Annotated[
+        list[AnyUrl],
+        Field(max_length=1, description="The image URLs for the product"),
+    ]
+    dimensions_cm: dimensions_cm
+    seller: Seller
+    created_at: datetime
+
+    ## using pydantic validators to validate the fields -
+    # field validators are used to validate the fields of the model, they are defined as class methods and decorated with @validator
+    # model validators are used to validate the entire model, they are defined as class methods and decorated with @root_validator
+    # class methods are used to define methods that can be called on the model, they are defined as class methods and decorated with @classmethod
+    # computed_validators are used to define computed fields, they are defined as class methods and decorated with @computed_field
+
+    @field_validator("sku", mode="after")
+    @classmethod
+    def validdate_sku_format(cls, value: str):
+        if "-" not in value:
+            raise ValueError("SKU must contain at least one hyphen")
+
+        last = value.split("-")[-1]
+        if not (len(last) == 3 and last.isdigit()):
+            raise ValueError("SKU must end with a 3 digit number")
+
+        return value
+
+    @model_validator(mode="after")
+    @classmethod
+    def validate_stock_and_isactive(cls, model: "Product"):
+        if model.stock == 0 and model.is_active is True:
+            raise ValueError("Product cannot be active if stock is 0")
+
+        return model
+
+    @computed_field
+    @property
+    def final_price(self) -> float:
+        discount_amount = self.price * (self.discount_percentage / 100)
+        return round(self.price - discount_amount, 2)
+
+    @computed_field
+    @property
+    def product_volume(self) -> float:
+        return round(
+            self.dimensions_cm.length
+            * self.dimensions_cm.width
+            * self.dimensions_cm.height,
+            2,
+        )
