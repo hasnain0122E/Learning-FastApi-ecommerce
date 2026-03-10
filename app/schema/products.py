@@ -16,6 +16,7 @@ from uuid import UUID
 from datetime import datetime
 
 
+# create pydantic
 class Seller(BaseModel):
     seller_id: UUID
     name: Annotated[
@@ -183,6 +184,78 @@ class Product(BaseModel):
             raise ValueError("SKU must end with a 3 digit number")
 
         return value
+
+    @model_validator(mode="after")
+    @classmethod
+    def validate_stock_and_isactive(cls, model: "Product"):
+        if model.stock == 0 and model.is_active is True:
+            raise ValueError("Product cannot be active if stock is 0")
+
+        return model
+
+    @computed_field
+    @property
+    def final_price(self) -> float:
+        discount_amount = self.price * (self.discount_percentage / 100)
+        return round(self.price - discount_amount, 2)
+
+    @computed_field
+    @property
+    def product_volume(self) -> float:
+        return round(
+            self.dimensions_cm.length
+            * self.dimensions_cm.width
+            * self.dimensions_cm.height,
+            2,
+        )
+
+
+# Update Pydantic
+class Seller_Update(BaseModel):
+    name: Optional[str] = Field(min_length=2, max_length=50)
+    email: Optional[EmailStr]
+    website: Optional[AnyUrl]
+
+    @field_validator("email", mode="after")
+    @classmethod
+    def validate_seller_email(cls, value: EmailStr):
+        allowed_domains = ["example.com", "store.com", "electronics.com"]
+        domain = value.split("@")[-1]
+        if domain not in allowed_domains:
+            raise ValueError(f"Cureent domain {domain} is not allowed for seller email")
+
+        return value
+
+
+class dimensionsCM_Update(BaseModel):
+    length: Optional[float] = Field(gt=0)
+    width: Optional[float] = Field(gt=0)
+    height: Optional[float] = Field(gt=0)
+
+
+class Product_Update(BaseModel):
+    name: Optional[str] = Field(min_length=3, max_length=100)
+    description: Optional[str] = Field(max_length=200)
+    category: Optional[str]
+    brand: Optional[str]
+    price: Optional[float] = Field(gt=0)
+    currency: Optional[Literal["INR"]]
+    discount_percentage: Optional[int] = Field(ge=0, le=90)
+    stock: Optional[int] = Field(ge=0)
+    is_active: Optional[bool] = Field(default=True)
+    rating: Optional[float] = Field(ge=0, le=5)
+    Tags: Optional[List[str]] = Field(max_length=10)
+    image_urls: Optional[list[AnyUrl]]
+
+    dimensions_cm: Optional[dimensionsCM_Update]
+    seller: Optional[Seller_Update]
+    created_at: datetime
+
+    ## using pydantic validators to validate the fields -
+    # field validators are used to validate the fields of the model, they are defined as class methods and decorated with @validator
+    # model validators are used to validate the entire model, they are defined as class methods and decorated with @root_validator
+    # class methods are used to define methods that can be called on the model, they are defined as class methods and decorated with @classmethod
+    # computed_validators are used to define computed fields, they are defined as class methods and decorated with @computed_field
 
     @model_validator(mode="after")
     @classmethod

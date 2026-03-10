@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1f03151d-3efe-4f81-a797-7b13173dac7c",
+    "sku": "HASI-359GB-188",
+    "name": "Xiaomi 11T Pro",
+    "description": "string",
+    "category": "Smartphone",
+    "brand": "Xiaomi",
+    "price": 299.99,
+    "currency": "INR",
+    "discount_percentage": 60,
+    "stock": 9,
+    "is_active": true,
+    "rating": 5.0,
+    "Tags": [
+      "Smartphone",
+      "Xiaomi",
+      "359GB"
+    ],
+    "image_urls": [
+      "https://example.com/"
+    ],
+    "dimensions_cm": {
+      "length": 10.5,
+      "width": 5.0,
+      "height": 2.0
+    },
+    "seller": {
+      "seller_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "name": "Apple Store",
+      "email": "user@example.com",
+      "website": "https://example.com/"
+    },
+    "created_at": "2026-03-10 20:44:27",
+    "final_price": 120.0,
+    "product_volume": 105.0
+  }
+]
