@@ -1,4 +1,7 @@
+from dotenv import load_dotenv
+import os
 from fastapi import FastAPI, HTTPException, Query as Q, Path
+from fastapi.responses import JSONResponse
 from service.products import (
     get_all_products,
     add_product,
@@ -9,15 +12,19 @@ from schema.products import Product, Product_Update
 from uuid import uuid4, UUID
 from datetime import datetime
 
+load_dotenv()
+BASE_URL = os.getenv("BASE_URL")
 app = FastAPI()
 
 
-@app.get("/")
+@app.get("/", response_model=dict)
 def read_root():
-    return {"message": "Welcome to FastAPI!"}
+    return JSONResponse(
+        status_code=200, content={"message": "Welcome to FastAPI!", "data": BASE_URL}
+    )
 
 
-@app.get("/products")
+@app.get("/products", response_model=dict)
 def list_products(
     name: str = Q(
         default=None, min_length=3, max_length=50, description="Search products by name"
@@ -50,10 +57,18 @@ def list_products(
     total = len(products)
     products = products[page - 1 : page - 1 + limit]
 
-    return {"total_products": total, "limit": limit, "page": page, "Items": products}
+    return JSONResponse(
+        status_code=200,
+        content={
+            "total_products": total,
+            "limit": limit,
+            "page": page,
+            "Items": products,
+        },
+    )
 
 
-@app.get("/products/{product_id}")
+@app.get("/products/{product_id}", response_model=dict)
 def get_product(
     product_id: str = Path(
         ...,
@@ -79,14 +94,14 @@ def create_product(product: Product):
         add_product(product_dict)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return product_dict
+    return JSONResponse(status_code=201, content=product_dict)
 
 
 @app.delete("/products/{product_id}")
 def delete_product(product_id: UUID = Path(..., description="Product ID to delete")):
     try:
         res = remove_product(str(product_id))
-        return res
+        return JSONResponse(status_code=200, content=res)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -100,6 +115,6 @@ def update_product(
         update_product = change_product(
             str(product_id), payload.model_dump(mode="json", exclude_unset=True)
         )
-        return update_product
+        return JSONResponse(status_code=200, content=update_product)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

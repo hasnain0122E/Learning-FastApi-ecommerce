@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import List, Dict
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "dummy.json"
+DATA_FILE = Path(__file__).parent.parent / "data" / "products.json"
 
 
 def load_products() -> List[Dict]:
@@ -44,7 +44,14 @@ def change_product(product_id: str, updated_product: Dict) -> Dict:
     products = get_all_products()
     for index, p in enumerate(products):
         if p["id"] == str(product_id):
-            products[index] = updated_product
+            for key, value in updated_product.items():
+                if value is None:
+                    continue
+                if isinstance(value, dict) and isinstance(p.get(key), dict):
+                    p[key].update(value)
+                else:
+                    p[key] = value
+            products[index] = p
             save_products(products)
-            return {"message": "Product successfully updated", "data": updated_product}
+            return p
     raise ValueError(f"Product with id {product_id} not found")
